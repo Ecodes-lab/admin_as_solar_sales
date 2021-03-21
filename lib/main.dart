@@ -16,8 +16,8 @@ void main() async{
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: UserProvider.initialize()),
+      ChangeNotifierProvider.value(value: ProductProvider.initialize()),
       ChangeNotifierProvider.value(value: AppState()),
-      ChangeNotifierProvider.value(value: ProductProvider()),
 
     ],
     child: MaterialApp(

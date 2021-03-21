@@ -1,15 +1,19 @@
+import 'package:admin_as_solar_sales/db/users.dart';
 import 'package:admin_as_solar_sales/models/user.dart';
 import 'package:admin_as_solar_sales/providers/user.dart';
+import 'package:admin_as_solar_sales/screens/products.dart';
 import 'package:flutter/material.dart';
 import 'package:admin_as_solar_sales/providers/app_states.dart';
 import 'package:admin_as_solar_sales/widgets/small_card.dart';
 import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
 import 'add_product.dart';
 import '../db/category.dart';
 import '../db/brand.dart';
 import '../db/size.dart';
 import '../db/power_capacity.dart';
+import '../db/partners.dart';
 
 
 enum Page { dashboard, manage }
@@ -28,16 +32,18 @@ class _DashboardState extends State<Dashboard> {
   TextEditingController brandController = TextEditingController();
   TextEditingController sizeController = TextEditingController();
   TextEditingController powerCapacityController = TextEditingController();
+  TextEditingController partnerController = TextEditingController();
+  TextEditingController partnerCodeController = TextEditingController();
   GlobalKey<FormState> _categoryFormKey = GlobalKey();
   GlobalKey<FormState> _brandFormKey = GlobalKey();
   GlobalKey<FormState> _sizeFormKey = GlobalKey();
   GlobalKey<FormState> _powerCapacityFormKey = GlobalKey();
+  GlobalKey<FormState> _partnerFormKey = GlobalKey();
   BrandService _brandService = BrandService();
   SizeService _sizeService = SizeService();
   CategoryService _categoryService = CategoryService();
   PowerCapacityService _powerCapacityService = PowerCapacityService();
-
-  // UserModel _userModel = UserModel();
+  PartnerService _partnerService = PartnerService();
 
   _getData(){
     var piedata = [
@@ -70,12 +76,15 @@ class _DashboardState extends State<Dashboard> {
     _getData();
   }
 
+
   @override
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final appState = Provider.of<AppState>(context);
 
-    return Scaffold(
+    // print(_userModel.isAdmin);
+    if (userProvider.userModel.isSuperAdmin) {
+      return Scaffold(
         appBar: AppBar(
           title: Row(
             children: <Widget>[
@@ -108,19 +117,71 @@ class _DashboardState extends State<Dashboard> {
           backgroundColor: Colors.white,
         ),
         // elevation: 0.0,
-      backgroundColor: Colors.grey[200],
-      body: _loadScreen(appState),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          userProvider.signOut();
-        },
-        child: Icon(Icons.logout),
-        backgroundColor: Colors.deepOrange,
-      ),
+        backgroundColor: Colors.grey[200],
+        body: _superAdminLoadScreen(appState),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            userProvider.signOut();
+          },
+          child: Icon(Icons.logout),
+          backgroundColor: Colors.deepOrange,
+        ),
 
-    );
+      );
+    } else {
+      return Scaffold(
+        appBar: AppBar(
+          title: Row(
+            children: <Widget>[
+              // Expanded(
+              //     child: FlatButton.icon(
+              //         onPressed: () {
+              //           setState(() => _selectedPage = Page.dashboard);
+              //         },
+              //         icon: Icon(
+              //           Icons.dashboard,
+              //           color: _selectedPage == Page.dashboard
+              //               ? active
+              //               : notActive,
+              //         ),
+              //         label: Text('Dashboard'))),
+              Expanded(
+                  child: FlatButton.icon(
+                      onPressed: () {
+                        setState(() => _selectedPage = Page.manage);
+                      },
+                      icon: Icon(
+                        Icons.sort,
+                        color:
+                        _selectedPage == Page.manage ? active : notActive,
+                      ),
+                      label: Text('Manage'))),
+            ],
+          ),
+          elevation: 0.0,
+          backgroundColor: Colors.white,
+        ),
+        // elevation: 0.0,
+        backgroundColor: Colors.grey[200],
+        body: _adminLoadScreen(appState),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            userProvider.signOut();
+          },
+          child: Icon(Icons.logout),
+          backgroundColor: Colors.deepOrange,
+        ),
+
+      );
+    }
+
   }
-  Widget _loadScreen(appState) {
+
+  // Widget _loadScreen(appState) {
+  //
+  // }
+
+  Widget _superAdminLoadScreen(appState) {
     switch (_selectedPage) {
       case Page.dashboard:
         return ListView(
@@ -207,7 +268,22 @@ class _DashboardState extends State<Dashboard> {
       case Page.manage:
         return ListView(
                     children: <Widget>[
-
+                    ListTile(
+                      leading: Icon(Icons.group),
+                      title: Text("Users"),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => AddProduct()));
+                      },
+                    ),
+                    Divider(),
+                    ListTile(
+                      leading: Icon(Icons.bookmark_border),
+                      title: Text("Sales"),
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => AddProduct()));
+                      },
+                    ),
+                    Divider(),
                     ListTile(
                       leading: Icon(Icons.add),
                       title: Text("Add product"),
@@ -219,7 +295,9 @@ class _DashboardState extends State<Dashboard> {
                     ListTile(
                       leading: Icon(Icons.change_history),
                       title: Text("Products list"),
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ProductsScreen()));
+                      },
                     ),
                     Divider(),
                     ListTile(
@@ -268,6 +346,22 @@ class _DashboardState extends State<Dashboard> {
                       },
                     ),
                     Divider(),
+                    ListTile(
+                      leading: Icon(Icons.person_add),
+                      title: Text("Add Partner"),
+                      onTap: () {
+                        _partnerAlert();
+                      },
+                    ),
+                    Divider(),
+                    ListTile(
+                      leading: Icon(Icons.group_work),
+                      title: Text("Partner list"),
+                      onTap: () {
+                        // _powerCapacityAlert();
+                      },
+                    ),
+                    Divider(),
                 ]
             );
 
@@ -275,6 +369,228 @@ class _DashboardState extends State<Dashboard> {
       default:
         return Container();
     }
+  }
+
+  Widget _adminLoadScreen(appState) {
+    return ListView(
+        children: <Widget>[
+
+          ListTile(
+            leading: Icon(Icons.add),
+            title: Text("Add product"),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => AddProduct()));
+            },
+          ),
+          Divider(),
+          // ListTile(
+          //   leading: Icon(Icons.change_history),
+          //   title: Text("Products list"),
+          //   onTap: () {},
+          // ),
+          // Divider(),
+          ListTile(
+            leading: Icon(Icons.add_circle),
+            title: Text("Add category"),
+            onTap: () {
+              _categoryAlert();
+            },
+          ),
+          Divider(),
+          // ListTile(
+          //   leading: Icon(Icons.category),
+          //   title: Text("Category list"),
+          //   onTap: () {},
+          // ),
+          // Divider(),
+          ListTile(
+            leading: Icon(Icons.add_circle_outline),
+            title: Text("Add brand"),
+            onTap: () {
+              _brandAlert();
+            },
+          ),
+          Divider(),
+          // ListTile(
+          //   leading: Icon(Icons.library_books),
+          //   title: Text("brand list"),
+          //   onTap: () {
+          //     _brandService.getBrands();
+          //   },
+          // ),
+          // Divider(),
+          ListTile(
+            leading: Icon(Icons.line_weight),
+            title: Text("Add size"),
+            onTap: () {
+              _sizeAlert();
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.power),
+            title: Text("Add Power/Capacity"),
+            onTap: () {
+              _powerCapacityAlert();
+            },
+          ),
+          Divider(),
+        ]
+    );
+    // switch (_selectedPage) {
+    //   case Page.dashboard:
+    //     return ListView(
+    //       // crossAxisAlignment: CrossAxisAlignment.start,
+    //       // crossAxisAlignment: CrossAxisAlignment.center,
+    //       children: <Widget>[
+    //         Padding(
+    //           padding: const EdgeInsets.all(10),
+    //           child: RichText(
+    //             // textAlign: TextAlign.left,
+    //             text: TextSpan(children: [
+    //               TextSpan(text: 'Revenue\n', style: TextStyle(fontSize: 25, color: Colors.grey)),
+    //               TextSpan(text: 'NGN 1287.99', style: TextStyle(fontSize: 40, color: Colors.black, fontWeight: FontWeight.w300)),
+    //
+    //             ]),
+    //           ),
+    //         ),
+    //         Row(
+    //           mainAxisAlignment: MainAxisAlignment.center,
+    //           children: <Widget>[
+    //             SmallCard(color2: Colors.indigo,color1: Colors.blue, icon: Icons.person_outline, value: 1265, title: 'Users',),
+    //             SmallCard(color2: Colors.indigo,color1: Colors.blue, icon: Icons.shopping_cart, value: 30, title: 'Orders',),
+    //           ],
+    //         ),
+    //         // Padding(
+    //         //   padding: const EdgeInsets.all(10),
+    //         Row(
+    //           mainAxisAlignment: MainAxisAlignment.center,
+    //           children: <Widget>[
+    //             SmallCard(color2: Colors.black87,color1: Colors.black87, icon: Icons.attach_money, value: 65, title: 'Sales',),
+    //             SmallCard(color2: Colors.black,color1: Colors.black87, icon: Icons.shopping_basket, value: 230, title: 'Stock',),
+    //           ],
+    //         ),
+    //         // ),
+    //
+    //         Padding(
+    //           padding: const EdgeInsets.only(left: 10),
+    //           child: Text('Sales per category', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey),),
+    //         ),
+    //
+    //         // Expanded(
+    //         //   child: Padding(
+    //         //     padding: const EdgeInsets.all(8.0),
+    //         //     child: Container(
+    //         //       decoration: BoxDecoration(
+    //         //           borderRadius: BorderRadius.circular(15),
+    //         //           color: Colors.white,
+    //         //           boxShadow: [
+    //         //             BoxShadow(
+    //         //                 color: Colors.grey[400],
+    //         //                 offset: Offset(1.0, 1.0),
+    //         //                 blurRadius: 4
+    //         //             )
+    //         //           ]
+    //         //       ),
+    //         //       width: MediaQuery.of(context).size.width / 1.2,
+    //         //       child: ListTile(
+    //         //         title: charts.PieChart(
+    //         //             _seriesPieData,
+    //         //             animate: true,
+    //         //             animationDuration: Duration(seconds: 3),
+    //         //             behaviors: [
+    //         //               new charts.DatumLegend(
+    //         //                 outsideJustification: charts.OutsideJustification.endDrawArea,
+    //         //                 horizontalFirst: false,
+    //         //                 desiredMaxRows: 2,
+    //         //                 cellPadding: new EdgeInsets.only(right: 4.0, bottom: 4.0),
+    //         //               )
+    //         //             ],
+    //         //             defaultRenderer: new charts.ArcRendererConfig(
+    //         //                 arcWidth: 30,
+    //         //                 arcRendererDecorators: [
+    //         //                   new charts.ArcLabelDecorator(
+    //         //                       labelPosition: charts.ArcLabelPosition.inside)
+    //         //                 ])),
+    //         //       ),
+    //         //     ),
+    //         //   ),
+    //         // )
+    //
+    //       ],
+    //     );
+    //     break;
+    //   case Page.manage:
+    //     return ListView(
+    //         children: <Widget>[
+    //
+    //           ListTile(
+    //             leading: Icon(Icons.add),
+    //             title: Text("Add product"),
+    //             onTap: () {
+    //               Navigator.push(context, MaterialPageRoute(builder: (_) => AddProduct()));
+    //             },
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.change_history),
+    //             title: Text("Products list"),
+    //             onTap: () {},
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.add_circle),
+    //             title: Text("Add category"),
+    //             onTap: () {
+    //               _categoryAlert();
+    //             },
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.category),
+    //             title: Text("Category list"),
+    //             onTap: () {},
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.add_circle_outline),
+    //             title: Text("Add brand"),
+    //             onTap: () {
+    //               _brandAlert();
+    //             },
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.library_books),
+    //             title: Text("brand list"),
+    //             onTap: () {
+    //               _brandService.getBrands();
+    //             },
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.line_weight),
+    //             title: Text("Add size"),
+    //             onTap: () {
+    //               _sizeAlert();
+    //             },
+    //           ),
+    //           Divider(),
+    //           ListTile(
+    //             leading: Icon(Icons.power),
+    //             title: Text("Add Power/Capacity"),
+    //             onTap: () {
+    //               _powerCapacityAlert();
+    //             },
+    //           ),
+    //           Divider(),
+    //         ]
+    //     );
+    //
+    //     break;
+    //   default:
+    //     return Container();
+    // }
   }
 
   void _categoryAlert() {
@@ -297,6 +613,7 @@ class _DashboardState extends State<Dashboard> {
         FlatButton(onPressed: (){
           if(categoryController.text != null){
             _categoryService.createCategory(categoryController.text);
+            categoryController.clear();
           }
 //          Fluttertoast.showToast(msg: 'category created');
           Navigator.pop(context);
@@ -331,6 +648,7 @@ class _DashboardState extends State<Dashboard> {
         FlatButton(onPressed: (){
           if(brandController.text != null){
             _brandService.createBrand(brandController.text);
+            brandController.clear();
           }
 //          Fluttertoast.showToast(msg: 'brand added');
           Navigator.pop(context);
@@ -365,6 +683,7 @@ class _DashboardState extends State<Dashboard> {
         FlatButton(onPressed: (){
           if(sizeController.text != null){
             _sizeService.createSize(sizeController.text);
+            sizeController.clear();
           }
 //          Fluttertoast.showToast(msg: 'brand added');
           Navigator.pop(context);
@@ -400,8 +719,67 @@ class _DashboardState extends State<Dashboard> {
         FlatButton(onPressed: (){
           if(powerCapacityController.text != null){
             _powerCapacityService.createPowerCapacity(powerCapacityController.text);
+            powerCapacityController.clear();
           }
 //          Fluttertoast.showToast(msg: 'brand added');
+          Navigator.pop(context);
+        }, child: Text('ADD')),
+        FlatButton(onPressed: (){
+          Navigator.pop(context);
+        }, child: Text('CANCEL')),
+
+      ],
+    );
+
+    showDialog(context: context, builder: (_) => alert);
+  }
+
+  void _partnerAlert() {
+    var alert = new AlertDialog(
+      content: Form(
+        key: _partnerFormKey,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: SizedBox(
+            height: 150,
+            child: Column(
+              children: <Widget>[
+                TextFormField(
+                  controller: partnerController,
+                  validator: (value){
+                    if(value.isEmpty){
+                      return 'partner cannot be empty';
+                    }
+                  },
+                  decoration: InputDecoration(
+                      hintText: "add partner"
+                  ),
+                ),
+                Divider(),
+                TextFormField(
+                  controller: partnerCodeController,
+                  validator: (value){
+                    if(value.isEmpty){
+                      return 'code cannot be empty';
+                    }
+                  },
+                  decoration: InputDecoration(
+                      hintText: "add code"
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        FlatButton(onPressed: (){
+          if(partnerController.text != null && partnerCodeController.text != null){
+            _partnerService.createPartner(partnerController.text, partnerCodeController.text);
+            partnerController.clear();
+            partnerCodeController.clear();
+          }
+         // Fluttertoast.showToast(msg: 'Partner added');
           Navigator.pop(context);
         }, child: Text('ADD')),
         FlatButton(onPressed: (){

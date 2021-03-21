@@ -139,6 +139,10 @@ class _LoginState extends State<Login> {
                                   if(_formKey.currentState.validate()){
                                     if(!await user.signIn(_email.text, _password.text))
                                       _key.currentState.showSnackBar(SnackBar(content: Text(user.message)));
+
+                                    if(user.messages() == "You are not an Admin - this activity will be reported"){
+                                      _key.currentState.showSnackBar(SnackBar(content: Text(user.messages()), duration: Duration(milliseconds: 5000),));
+                                    }
                                   }
                                 },
                                 minWidth: MediaQuery.of(context).size.width,

@@ -3,6 +3,7 @@ import 'dart:async';
 // import 'package:admin_as_solar_sales/models/cart_item.dart';
 // import 'package:admin_as_solar_sales/models/order.dart';
 // import 'package:admin_as_solar_sales/models/product.dart';
+import 'package:admin_as_solar_sales/models/product.dart';
 import 'package:admin_as_solar_sales/models/user.dart';
 // import 'package:admin_as_solar_sales/models/cards.dart';
 // import 'package:admin_as_solar_sales/provider/product.dart';
@@ -35,7 +36,7 @@ class UserProvider with ChangeNotifier {
   // List<PurchaseModel> purchaseHistory = [];
 
 //  getter
-//   UserModel get userModel => _userModel;
+  UserModel get userModel => _userModel;
   dynamic message;
 
   Status get status => _status;
@@ -98,6 +99,10 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  messages() {
+    return message;
+  }
+
   // Future<void> loadCardsAndPurchase({String userId})async{
   //   cards = await _cardServices.getCards(userId: userId);
   //   // purchaseHistory = await _purchaseServices.getPurchaseHistory(userId: userId);
@@ -155,9 +160,10 @@ class UserProvider with ChangeNotifier {
     } else {
       _user = user;
       _userModel = await _userServices.getUserById(user.uid);
-      if (!_userModel.isAdmin || !_userModel.isSuperAdmin) {
+      if (!_userModel.isAdmin && !_userModel.isSuperAdmin) {
+        this.message = "You are not an Admin - this activity will be reported";
+        // messages(message);
         _status = Status.Unauthenticated;
-        // this.message = "You are not an Admin - this activity will be reported";
         signOut();
         notifyListeners();
       }
@@ -203,11 +209,11 @@ class UserProvider with ChangeNotifier {
 //     }
 //   }
 //
-//   Future<bool> removeFromCart({CartItemModel cartItem})async{
-//     print("THE PRODUC IS: ${cartItem.toString()}");
+//   Future<bool> removeFromCart({ProductModel productItem})async{
+//     print("THE PRODUC IS: ${productItem.toString()}");
 //
 //     try{
-//       _userServices.removeFromCart(userId: _user.uid, cartItem: cartItem);
+//       _userServices.removeFromCart(userId: _user.uid, productItem: productItem);
 //       return true;
 //     }catch(e){
 //       print("THE ERROR ${e.toString()}");

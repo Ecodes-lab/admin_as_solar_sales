@@ -43,7 +43,7 @@ class UserServices{
   //     "cart": FieldValue.arrayUnion([cartItem.toMap()])
   //   });
   // }
-  //
+
   // void removeFromCart({String userId, CartItemModel cartItem}){
   //   _firestore.collection(collection).doc(userId).update({
   //     "cart": FieldValue.arrayRemove([cartItem.toMap()])
