@@ -69,21 +69,23 @@ class ProductModel {
 
 
   ProductModel.fromSnapshot(DocumentSnapshot snapshot) {
-    _id = snapshot.data()[ID] ?? " ";
-    _brand = snapshot.data()[BRAND] ?? " ";
-    _sale = snapshot.data()[SALE] ?? false;
-    _description = snapshot.data()[DESCRIPTION] ?? " ";
-    _featured = snapshot.data()[FEATURED] ?? true;
-    _price = snapshot.data()[PRICE].floor() ?? 0;
-    _franchise = snapshot.data()[FRANCHISE].floor() ?? 0;
-    _ibo = snapshot.data()[IBO].floor() ?? 0;
-    _agent = snapshot.data()[AGENT].floor() ?? 0;
-    _category = snapshot.data()[CATEGORY] ?? " ";
-    // _colors = snapshot.data()[COLORS] ?? [];
-    _size = snapshot.data()[SIZE] ?? " ";
-    _name = snapshot.data()[NAME] ?? " ";
-    _picture = snapshot.data()[PICTURE] ?? " ";
-    _images = snapshot.data()[IMAGES] ?? [];
+    Map<String, dynamic> data = snapshot.data();
+    _id = data[ID] ?? " ";
+    _brand = data[BRAND] ?? " ";
+    _sale = data[SALE] ?? false;
+    _description = data[DESCRIPTION] ?? " ";
+    _featured = data[FEATURED] ?? true;
+    _price = data[PRICE].floor() ?? 0;
+    _franchise = data[FRANCHISE].floor() ?? 0;
+    _ibo = data[IBO].floor() ?? 0;
+    _agent = data[AGENT].floor() ?? 0;
+    _quantity = data[QUANTITY].floor() ?? 0;
+    _category = data[CATEGORY] ?? " ";
+    // _colors = data[COLORS] ?? [];
+    _size = data[SIZE] ?? " ";
+    _name = data[NAME] ?? " ";
+    _picture = data[PICTURE] ?? " ";
+    _images = data[IMAGES] ?? [];
 
   }
 }

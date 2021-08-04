@@ -9,10 +9,10 @@ class PartnerService{
     var id = Uuid();
     String partner_Id = id.v1();
 
-    _firestore.collection(ref).doc(partner_Id).set({'partner': name, 'code': code});
+    _firestore.collection(ref).doc(partner_Id).set({'partner': name.trim(), 'code': code.trim()});
   }
 
-  Future<List<DocumentSnapshot>> getPartner() => _firestore.collection(ref).get().then((snaps){
+  Future<List<DocumentSnapshot>> getPartner(String text) => _firestore.collection(ref).get().then((snaps){
     print(snaps.docs.length);
     return snaps.docs;
   });

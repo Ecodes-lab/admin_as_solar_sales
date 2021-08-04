@@ -1,7 +1,9 @@
 import 'package:admin_as_solar_sales/db/users.dart';
 import 'package:admin_as_solar_sales/models/user.dart';
+import 'package:admin_as_solar_sales/providers/products_provider.dart';
 import 'package:admin_as_solar_sales/providers/user.dart';
 import 'package:admin_as_solar_sales/screens/products.dart';
+import 'package:admin_as_solar_sales/screens/review.dart';
 import 'package:flutter/material.dart';
 import 'package:admin_as_solar_sales/providers/app_states.dart';
 import 'package:admin_as_solar_sales/widgets/small_card.dart';
@@ -24,6 +26,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
+  final _key = GlobalKey<ScaffoldState>();
   List<charts.Series<Task, String>> _seriesPieData;
   Page _selectedPage = Page.dashboard;
   MaterialColor active = Colors.red;
@@ -81,6 +84,9 @@ class _DashboardState extends State<Dashboard> {
   Widget build(BuildContext context) {
     final userProvider = Provider.of<UserProvider>(context);
     final appState = Provider.of<AppState>(context);
+    final productProvider = Provider.of<ProductProvider>(context);
+
+    // productProvider.products.;
 
     // print(_userModel.isAdmin);
     if (userProvider.userModel.isSuperAdmin) {
@@ -118,7 +124,7 @@ class _DashboardState extends State<Dashboard> {
         ),
         // elevation: 0.0,
         backgroundColor: Colors.grey[200],
-        body: _superAdminLoadScreen(appState),
+        body: _superAdminLoadScreen(context, userProvider, productProvider, appState),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             userProvider.signOut();
@@ -163,7 +169,7 @@ class _DashboardState extends State<Dashboard> {
         ),
         // elevation: 0.0,
         backgroundColor: Colors.grey[200],
-        body: _adminLoadScreen(appState),
+        body: _adminLoadScreen(context, userProvider, productProvider, appState),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             userProvider.signOut();
@@ -181,7 +187,7 @@ class _DashboardState extends State<Dashboard> {
   //
   // }
 
-  Widget _superAdminLoadScreen(appState) {
+  Widget _superAdminLoadScreen(BuildContext context, userProvider, productProvider, appState) {
     switch (_selectedPage) {
       case Page.dashboard:
         return ListView(
@@ -301,10 +307,19 @@ class _DashboardState extends State<Dashboard> {
                     ),
                     Divider(),
                     ListTile(
+                      leading: Icon(Icons.comment),
+                      title: Text("Pending reviews"),
+                      onTap: () async {
+                        await productProvider.loadReviews();
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewScreen()));
+                      },
+                    ),
+                    Divider(),
+                    ListTile(
                       leading: Icon(Icons.add_circle),
                       title: Text("Add category"),
                       onTap: () {
-                        _categoryAlert();
+                        _categoryAlert(context, userProvider, appState);
                       },
                     ),
                     Divider(),
@@ -371,7 +386,7 @@ class _DashboardState extends State<Dashboard> {
     }
   }
 
-  Widget _adminLoadScreen(appState) {
+  Widget _adminLoadScreen(BuildContext context, userProvider, productProvider, appState) {
     return ListView(
         children: <Widget>[
 
@@ -383,17 +398,28 @@ class _DashboardState extends State<Dashboard> {
             },
           ),
           Divider(),
-          // ListTile(
-          //   leading: Icon(Icons.change_history),
-          //   title: Text("Products list"),
-          //   onTap: () {},
-          // ),
-          // Divider(),
+          ListTile(
+            leading: Icon(Icons.change_history),
+            title: Text("Products list"),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => ProductsScreen()));
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.comment),
+            title: Text("Pending reviews"),
+            onTap: () async {
+              await productProvider.loadReviews();
+              Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewScreen()));
+            },
+          ),
+          Divider(),
           ListTile(
             leading: Icon(Icons.add_circle),
             title: Text("Add category"),
             onTap: () {
-              _categoryAlert();
+              _categoryAlert(context, userProvider, appState);
             },
           ),
           Divider(),
@@ -593,37 +619,48 @@ class _DashboardState extends State<Dashboard> {
     // }
   }
 
-  void _categoryAlert() {
-    var alert = new AlertDialog(
-      content: Form(
-        key: _categoryFormKey,
-        child: TextFormField(
-          controller: categoryController,
-          validator: (value){
-            if(value.isEmpty){
-              return 'category cannot be empty';
-            }
-          },
-          decoration: InputDecoration(
-              hintText: "add category"
-          ),
-        ),
-      ),
-      actions: <Widget>[
-        FlatButton(onPressed: (){
-          if(categoryController.text != null){
-            _categoryService.createCategory(categoryController.text);
-            categoryController.clear();
-          }
-//          Fluttertoast.showToast(msg: 'category created');
-          Navigator.pop(context);
-        }, child: Text('ADD')),
-        FlatButton(onPressed: (){
-          Navigator.pop(context);
-        }, child: Text('CANCEL')),
+  _categoryAlert(BuildContext context, userProvider, appState) {
+    var alert = new StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            content: Form(
+              key: _categoryFormKey,
+              child: TextFormField(
+                controller: categoryController,
+                validator: (value){
+                  if(value.isEmpty){
+                    return 'category cannot be empty';
+                  }
+                },
+                decoration: InputDecoration(
+                    hintText: "add category"
+                ),
+              ),
+            ),
+            actions: <Widget>[
+              FlatButton(onPressed: () async {
+                if(categoryController.text != null && categoryController.text != ""){
 
-      ],
-    );
+                  await _categoryService.getCategory(categoryController.text).then((value) {
+                    if (value.isEmpty) {
+                      _categoryService.createCategory(categoryController.text);
+                    }
+                  });
+
+                  categoryController.clear();
+                  Navigator.pop(context);
+                }
+      //          Fluttertoast.showToast(msg: 'category created');
+
+              }, child: Text('ADD')),
+              FlatButton(onPressed: (){
+                categoryController.clear();
+                Navigator.pop(context);
+              }, child: Text('CANCEL')),
+
+            ],
+          );
+        });
 
     showDialog(context: context, builder: (_) => alert);
   }
@@ -645,13 +682,18 @@ class _DashboardState extends State<Dashboard> {
         ),
       ),
       actions: <Widget>[
-        FlatButton(onPressed: (){
-          if(brandController.text != null){
-            _brandService.createBrand(brandController.text);
+        FlatButton(onPressed: () async {
+          if(brandController.text != null && brandController.text != ""){
+            await _brandService.getBrand(brandController.text).then((value) {
+              if (value.isEmpty) {
+                _brandService.createBrand(brandController.text);
+              }
+            });
             brandController.clear();
+            Navigator.pop(context);
           }
 //          Fluttertoast.showToast(msg: 'brand added');
-          Navigator.pop(context);
+
         }, child: Text('ADD')),
         FlatButton(onPressed: (){
           Navigator.pop(context);
@@ -680,13 +722,18 @@ class _DashboardState extends State<Dashboard> {
         ),
       ),
       actions: <Widget>[
-        FlatButton(onPressed: (){
-          if(sizeController.text != null){
-            _sizeService.createSize(sizeController.text);
+        FlatButton(onPressed: () async {
+          if(sizeController.text != null && sizeController.text != ""){
+            await _sizeService.getSize(sizeController.text).then((value) {
+              if (value.isEmpty) {
+                _sizeService.createSize(sizeController.text);
+              }
+            });
             sizeController.clear();
+            Navigator.pop(context);
           }
 //          Fluttertoast.showToast(msg: 'brand added');
-          Navigator.pop(context);
+
         }, child: Text('ADD')),
         FlatButton(onPressed: (){
           Navigator.pop(context);
@@ -716,13 +763,17 @@ class _DashboardState extends State<Dashboard> {
         ),
       ),
       actions: <Widget>[
-        FlatButton(onPressed: (){
-          if(powerCapacityController.text != null){
-            _powerCapacityService.createPowerCapacity(powerCapacityController.text);
+        FlatButton(onPressed: () async {
+          if(powerCapacityController.text != null && powerCapacityController.text != ""){
+            await _powerCapacityService.getPowerCapacity(powerCapacityController.text).then((value) {
+              if (value.isEmpty) {
+                _powerCapacityService.createPowerCapacity(powerCapacityController.text);
+              }
+            });
             powerCapacityController.clear();
+            Navigator.pop(context);
           }
 //          Fluttertoast.showToast(msg: 'brand added');
-          Navigator.pop(context);
         }, child: Text('ADD')),
         FlatButton(onPressed: (){
           Navigator.pop(context);
@@ -774,13 +825,14 @@ class _DashboardState extends State<Dashboard> {
       ),
       actions: <Widget>[
         FlatButton(onPressed: (){
-          if(partnerController.text != null && partnerCodeController.text != null){
+          if(partnerController.text != null && partnerController.text != "" && partnerCodeController.text != null && partnerCodeController.text != ""){
             _partnerService.createPartner(partnerController.text, partnerCodeController.text);
             partnerController.clear();
             partnerCodeController.clear();
+            Navigator.pop(context);
           }
          // Fluttertoast.showToast(msg: 'Partner added');
-          Navigator.pop(context);
+
         }, child: Text('ADD')),
         FlatButton(onPressed: (){
           Navigator.pop(context);

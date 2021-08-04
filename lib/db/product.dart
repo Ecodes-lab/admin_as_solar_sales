@@ -23,12 +23,22 @@ class ProductService {
         return products;
       });
 
-  void updateDetails(Map<String, dynamic> values){
+  Future<List<DocumentSnapshot>> getProduct(String productId) async =>
+      _firestore
+          .collection(ref)
+          .where("productId", isEqualTo: productId)
+          .get().then((snaps){
+
+        return snaps.docs;
+      });
+
+
+  void updateProduct(Map<String, dynamic> values){
     _firestore.collection(ref).doc(values["id"]).update(values);
   }
 
 
-  void removeFromProduct({String productId, ProductModel productItem}){
+  void removeFromProduct({String productId}){
     _firestore.collection(ref).doc(productId).delete();
   }
 }

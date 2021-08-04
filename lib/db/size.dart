@@ -9,8 +9,23 @@ class SizeService{
     var id = Uuid();
     String sizeId = id.v1();
 
-    _firestore.collection(ref).doc(sizeId).set({'size': name});
+    _firestore.collection(ref).doc(sizeId).set({'size': name.trim()});
   }
+
+  Future<List<DocumentSnapshot>> getSize(String size) async =>
+      _firestore
+          .collection(ref)
+          .where("size", isEqualTo: size)
+          .get().then((snaps){
+
+        // List<PartnerModel> partners = [];
+        // for (DocumentSnapshot order in snaps.docs) {
+        //   partners.add(PartnerModel.fromSnapshot(order));
+        // }
+        // return partners;
+        // print(snaps.docs.length);
+        return snaps.docs;
+      });
 
   Future<List<DocumentSnapshot>> getSizes() => _firestore.collection(ref).get().then((snaps){
     print(snaps.docs.length);

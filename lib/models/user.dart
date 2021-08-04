@@ -49,16 +49,17 @@ class UserModel {
 
 
   UserModel.fromSnapshot(DocumentSnapshot snapshot) {
-    _name = snapshot.data()[NAME];
-    _email = snapshot.data()[EMAIL];
-    _id = snapshot.data()[ID];
-    _stripeId = snapshot.data()[STRIPE_ID] ?? null;
-    _paystackId = snapshot.data()[PAYSTACK_ID] ?? null;
-    // cart = _convertCartItems(snapshot.data()[CART]?? []);
-    totalCartPrice = snapshot.data()[CART] == null ? 0 :getTotalPrice(cart: snapshot.data()[CART]);
-    _activeCard = snapshot.data()[ACTIVE_CARD] ?? null;
-    _isAdmin = snapshot.data()[IS_ADMIN] ?? false;
-    _isSuperAdmin = snapshot.data()[IS_SUPER_ADMIN] ?? false;
+    Map<String, dynamic> data = snapshot.data();
+    _name = data[NAME];
+    _email = data[EMAIL];
+    _id = data[ID];
+    _stripeId = data[STRIPE_ID] ?? null;
+    _paystackId = data[PAYSTACK_ID] ?? null;
+    // cart = _convertCartItems(data[CART]?? []);
+    totalCartPrice = data[CART] == null ? 0 :getTotalPrice(cart: data[CART]);
+    _activeCard = data[ACTIVE_CARD] ?? null;
+    _isAdmin = data[IS_ADMIN] ?? false;
+    _isSuperAdmin = data[IS_SUPER_ADMIN] ?? false;
 
   }
 

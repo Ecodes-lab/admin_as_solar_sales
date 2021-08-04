@@ -1,5 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:io' as Io;
 
+import 'package:admin_as_solar_sales/models/product.dart';
+import 'package:admin_as_solar_sales/screens/product_preview.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -13,11 +17,17 @@ import '../db/size.dart';
 import '../db/power_capacity.dart';
 
 class AddProduct extends StatefulWidget {
+  final ProductModel productModel;
+  final isEdit;
+
+  AddProduct({Key key, @required this.productModel, this.isEdit}) : super(key: key);
+
   @override
   _AddProductState createState() => _AddProductState();
 }
 
 class _AddProductState extends State<AddProduct> {
+
   CategoryService _categoryService = CategoryService();
   BrandService _brandService = BrandService();
   ProductService productService = ProductService();
@@ -25,7 +35,7 @@ class _AddProductState extends State<AddProduct> {
   SizeService _sizeService = SizeService();
   GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   TextEditingController productNameController = TextEditingController();
-  TextEditingController quatityController = TextEditingController();
+  TextEditingController quantityController = TextEditingController();
   final priceController = TextEditingController()..text = "0.00";
   TextEditingController descriptionController = TextEditingController();
   TextEditingController partnerFranchiseController = TextEditingController()..text = "0.00";
@@ -53,13 +63,34 @@ class _AddProductState extends State<AddProduct> {
   bool onSale = false;
   bool featured = false;
 
-  File _image1;
-  File _image2;
-  File _image3;
+  PickedFile _image1;
+  PickedFile _image2;
+  PickedFile _image3;
   bool isLoading = false;
 
+
+
   @override
-  void initState() {
+  initState(){
+    super.initState();
+    if(widget.productModel != null) {
+
+      productNameController.text = widget.productModel.name;
+      quantityController.text = widget.productModel.quantity.toString();
+      priceController.text = widget.productModel.price != 0 ? "${(widget.productModel.price / 100).toStringAsFixed(2)}" : "0.00";
+      partnerFranchiseController.text = widget.productModel.franchise != 0 ? "${(widget.productModel.franchise / 100).toStringAsFixed(2)}" : "0.00";
+      partnerIBOController.text = widget.productModel.ibo != 0 ? "${(widget.productModel.ibo / 100).toStringAsFixed(2)}" : "0.00";
+      partnerAgentController.text = widget.productModel.agent != 0 ? "${(widget.productModel.agent / 100).toStringAsFixed(2)}" : "0.00";
+      descriptionController.text = widget.productModel.description;
+      onSale = widget.productModel.sale;
+      featured = widget.productModel.featured;
+      // _currentCategory = widget.productModel.category;
+      // final byte = Io.File(widget.productModel.images[0]).readAsBytes();
+      // File img64 = widget.productModel.images[0];
+      // _selectImage(img64, 1);
+
+
+    }
     _getCategories();
     _getBrands();
     _getPowerCapacities();
@@ -69,12 +100,13 @@ class _AddProductState extends State<AddProduct> {
   List<DropdownMenuItem<String>> getCategoriesDropdown() {
     List<DropdownMenuItem<String>> items = new List();
     for (int i = 0; i < categories.length; i++) {
+      Map<String, dynamic> data = categories[i].data();
       setState(() {
         items.insert(
             0,
             DropdownMenuItem(
-                child: Text(categories[i].data()['category']),
-                value: categories[i].data()['category']));
+                child: Text(data['category']),
+                value: data['category']));
       });
     }
     return items;
@@ -83,12 +115,13 @@ class _AddProductState extends State<AddProduct> {
   List<DropdownMenuItem<String>> getBrandosDropDown() {
     List<DropdownMenuItem<String>> items = new List();
     for (int i = 0; i < brands.length; i++) {
+      Map<String, dynamic> data = brands[i].data();
       setState(() {
         items.insert(
             0,
             DropdownMenuItem(
-                child: Text(brands[i].data()['brand']),
-                value: brands[i].data()['brand']));
+                child: Text(data['brand']),
+                value: data['brand']));
       });
     }
     return items;
@@ -97,12 +130,13 @@ class _AddProductState extends State<AddProduct> {
   List<DropdownMenuItem<String>> getPowerCapacityDropDown() {
     List<DropdownMenuItem<String>> items = new List();
     for (int i = 0; i < power_capacities.length; i++) {
+      Map<String, dynamic> data = power_capacities[i].data();
       setState(() {
         items.insert(
             0,
             DropdownMenuItem(
-                child: Text(power_capacities[i].data()['power_capacity']),
-                value: power_capacities[i].data()['power_capacity']));
+                child: Text(data['power_capacity']),
+                value: data['power_capacity']));
       });
     }
     return items;
@@ -111,16 +145,19 @@ class _AddProductState extends State<AddProduct> {
   List<DropdownMenuItem<String>> getSizeDropDown() {
     List<DropdownMenuItem<String>> items = new List();
     for (int i = 0; i < sizes.length; i++) {
+      Map<String, dynamic> data = sizes[i].data();
       setState(() {
         items.insert(
             0,
             DropdownMenuItem(
-                child: Text(sizes[i].data()['size']),
-                value: sizes[i].data()['size']));
+                child: Text(data['size']),
+                value: data['size']));
       });
     }
     return items;
   }
+
+  final picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +179,7 @@ class _AddProductState extends State<AddProduct> {
         ),
 
         title: Text(
-          "add product",
+          widget.isEdit == true ? "Update Product" : "Add Product",
           style: TextStyle(color: black),
         ),
       ),
@@ -180,9 +217,9 @@ class _AddProductState extends State<AddProduct> {
                       child: OutlineButton(
                           borderSide: BorderSide(
                               color: grey.withOpacity(0.5), width: 2.5),
-                          onPressed: () {
+                          onPressed: () async {
                             _selectImage(
-                                ImagePicker.pickImage(
+                                picker.getImage(
                                     source: ImageSource.gallery,
                                     maxHeight: 400,
                                     maxWidth: 400
@@ -200,7 +237,7 @@ class _AddProductState extends State<AddProduct> {
                               color: grey.withOpacity(0.5), width: 2.5),
                           onPressed: () {
                             _selectImage(
-                                ImagePicker.pickImage(
+                                picker.getImage(
                                     source: ImageSource.gallery,
                                     maxHeight: 400,
                                     maxWidth: 400
@@ -218,7 +255,7 @@ class _AddProductState extends State<AddProduct> {
                             color: grey.withOpacity(0.5), width: 2.5),
                         onPressed: () {
                           _selectImage(
-                              ImagePicker.pickImage(
+                              picker.getImage(
                                   source: ImageSource.gallery,
                                   maxHeight: 400,
                                   maxWidth: 400
@@ -578,7 +615,7 @@ class _AddProductState extends State<AddProduct> {
               Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: TextFormField(
-                  controller: quatityController,
+                  controller: quantityController,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     hintText: 'Quantity',
@@ -738,14 +775,60 @@ class _AddProductState extends State<AddProduct> {
 
 
 
-              FlatButton(
-                color: red,
-                textColor: white,
-                child: Text('add product'),
-                onPressed: () {
-                  validateAndUpload();
-                },
-              )
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      FlatButton(
+                        color: red,
+                        textColor: white,
+                        child: Text(widget.isEdit == true ? "Update" : "Add"),
+                        onPressed: () {
+                          if(widget.isEdit == true) {
+                            validateAndUpdate();
+                            return;
+                          }
+                          validateAndUpload();
+                        },
+                      ),
+                      FlatButton(
+                        color: red,
+                        textColor: white,
+                        child: Text('Preview'),
+                        onPressed: () {
+                          // Map products = {};
+                          //
+                          // if (_image1 == null) {
+                          //   if(widget.productModel != null) {
+                          //     products = {
+                          //       "picture": widget.productModel.picture,
+                          //       "images": [],
+                          //       "name": "",
+                          //       "price": 0,
+                          //       "size": "",
+                          //       "description": ""
+                          //     };
+                          //   }
+                          // } else {
+                          //
+                          //   products = {
+                          //     "picture": "",
+                          //     "images": [],
+                          //     "name": "",
+                          //     "price": 0,
+                          //     "size": "",
+                          //     "description": ""
+                          //   };
+                          // }
+                          // Navigator.push(context, MaterialPageRoute(builder: (_) => ProductPreview(product: products)));
+                        },
+                      )
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -755,41 +838,69 @@ class _AddProductState extends State<AddProduct> {
 
   _getCategories() async {
     List<DocumentSnapshot> data = await _categoryService.getCategories();
-    print(data.length);
+    // print(data.length);
     setState(() {
       categories = data;
       categoriesDropDown = getCategoriesDropdown();
-      _currentCategory = categories[0].data()['category'];
+      if(widget.productModel != null) {
+        _currentCategory = widget.productModel.category;
+      }
+      else {
+        Map<String, dynamic> data = categories[0].data();
+        _currentCategory = data['category'];
+      }
     });
   }
 
   _getBrands() async {
     List<DocumentSnapshot> data = await _brandService.getBrands();
-    print(data.length);
+    // print(data.length);
     setState(() {
       brands = data;
       brandsDropDown = getBrandosDropDown();
-      _currentBrand = brands[0].data()['brand'];
+      if(widget.productModel != null) {
+        _currentBrand = widget.productModel.brand;
+      }
+      else {
+        Map<String, dynamic> data = brands[0].data();
+        _currentBrand = data['brand'];
+      }
     });
   }
 
   _getPowerCapacities() async {
     List<DocumentSnapshot> data = await _powerCapacityService.getPowerCapacities();
-    print(data.length);
+    // print(data.length);
     setState(() {
       power_capacities = data;
       powerCapacityDropDown = getPowerCapacityDropDown();
-      _currentPowerCapacity = power_capacities[0].data()['power_capacity'];
+      if(widget.productModel != null) {
+        // dynamic aStr = widget.productModel.size.replaceAll(new RegExp(r'[^A-Za-z]'),'');
+        // print(aStr);
+        _currentPowerCapacity = widget.productModel.size.replaceAll(new RegExp(r'[^A-Za-z]'),'');
+      }
+      else {
+        Map<String, dynamic> data = power_capacities[0].data();
+        _currentPowerCapacity = data['power_capacity'];
+      }
     });
   }
 
   _getSizes() async {
     List<DocumentSnapshot> data = await _sizeService.getSizes();
-    print(data.length);
+    // print(data.length);
     setState(() {
       sizes = data;
       sizeDropDown = getSizeDropDown();
-      _currentSize = sizes[0].data()['size'];
+      if(widget.productModel != null) {
+        // dynamic aStr = widget.productModel.size.replaceAll(new RegExp(r'[^A-Za-z]'),'');
+        // print(aStr);
+        _currentSize = widget.productModel.size.replaceAll(new RegExp(r'[^0-9]'),'');
+      }
+      else {
+        Map<String, dynamic> data = sizes[0].data();
+        _currentSize = data['size'];
+      }
     });
   }
 
@@ -821,8 +932,8 @@ class _AddProductState extends State<AddProduct> {
   //   }
   // }
 
-  void _selectImage(Future<File> pickImage, int imageNumber) async {
-    File tempImg = await pickImage;
+  void _selectImage(Future<PickedFile> pickImage, int imageNumber) async {
+    PickedFile tempImg = await pickImage;
     switch (imageNumber) {
       case 1:
         setState(() => _image1 = tempImg);
@@ -838,6 +949,13 @@ class _AddProductState extends State<AddProduct> {
 
   Widget _displayChild1() {
     if (_image1 == null) {
+      if(widget.productModel != null) {
+        return Image.network(
+          widget.productModel.picture,
+          fit: BoxFit.fill,
+          width: double.infinity,
+        );
+      }
       return Padding(
         padding: const EdgeInsets.fromLTRB(14, 50, 14, 50),
         child: new Icon(
@@ -846,8 +964,9 @@ class _AddProductState extends State<AddProduct> {
         ),
       );
     } else {
+
       return Image.file(
-        _image1,
+        File(_image1.path),
         fit: BoxFit.fill,
         width: double.infinity,
       );
@@ -856,6 +975,13 @@ class _AddProductState extends State<AddProduct> {
 
   Widget _displayChild2() {
     if (_image2 == null) {
+      if(widget.productModel != null && widget.productModel.images.length > 0) {
+        return Image.network(
+          widget.productModel.images[1],
+          fit: BoxFit.fill,
+          width: double.infinity,
+        );
+      }
       return Padding(
         padding: const EdgeInsets.fromLTRB(14, 50, 14, 50),
         child: new Icon(
@@ -865,7 +991,7 @@ class _AddProductState extends State<AddProduct> {
       );
     } else {
       return Image.file(
-        _image2,
+        File(_image2.path),
         fit: BoxFit.fill,
         width: double.infinity,
       );
@@ -874,6 +1000,13 @@ class _AddProductState extends State<AddProduct> {
 
   Widget _displayChild3() {
     if (_image3 == null) {
+      if(widget.productModel != null && widget.productModel.images.length > 0) {
+        return Image.network(
+          widget.productModel.images[2],
+          fit: BoxFit.fill,
+          width: double.infinity,
+        );
+      }
       return Padding(
         padding: const EdgeInsets.fromLTRB(14, 50, 14, 50),
         child: new Icon(
@@ -883,7 +1016,7 @@ class _AddProductState extends State<AddProduct> {
       );
     } else {
       return Image.file(
-        _image3,
+        File(_image3.path),
         fit: BoxFit.fill,
         width: double.infinity,
       );
@@ -913,10 +1046,156 @@ class _AddProductState extends State<AddProduct> {
   //   }
   // }
 
-
-
-  void validateAndUpload() async {
+  validateAndUpdate() async {
     if (_formKey.currentState.validate()) {
+      if (
+            widget.productModel.images.isEmpty &&
+            widget.productModel.images.length != 3 &&
+            (
+                (_image2 != null && _image3 == null) ||
+                (_image2 == null && _image3 != null))
+      ){
+          return;
+      }
+
+      // if (_image1 != null || _image2 != null || _image3 != null) {
+        setState(() => isLoading = true);
+        // if (_image1 != null && _image2 != null && _image3 != null) {
+        // if (selectedSizes.isNotEmpty) {
+        String imageUrl;
+        String imageUrl1;
+        String imageUrl2;
+        String imageUrl3;
+
+        final FirebaseStorage storage = FirebaseStorage.instance;
+
+        UploadTask task1;
+        TaskSnapshot snapshot1;
+        if (_image1 != null) {
+          final String picture1 =
+              "1${DateTime
+              .now()
+              .millisecondsSinceEpoch
+              .toString()}.jpg";
+          task1 =
+              storage.ref().child(picture1).putFile(File(_image1.path));
+
+          snapshot1 =
+          await task1.then((snapshot) => snapshot);
+        }
+
+        TaskSnapshot snapshot2;
+        TaskSnapshot snapshot3;
+
+        if (_image2 != null) {
+          final String picture2 =
+              "2${DateTime
+              .now()
+              .millisecondsSinceEpoch
+              .toString()}.jpg";
+          UploadTask task2 =
+          storage.ref().child(picture2).putFile(File(_image2.path));
+
+          snapshot2 =
+          await task2.then((snapshot) => snapshot);
+        }
+
+        if (_image3 != null) {
+          final String picture3 =
+              "3${DateTime
+              .now()
+              .millisecondsSinceEpoch
+              .toString()}.jpg";
+          UploadTask task3 =
+          storage.ref().child(picture3).putFile(File(_image3.path));
+
+          // TaskSnapshot snapshot1 =
+          // await task1.then((snapshot) => snapshot);
+          // TaskSnapshot snapshot2 =
+          // await task2.then((snapshot) => snapshot);
+
+          snapshot3 =
+          await task3.then((snapshot) => snapshot);
+        }
+
+        // if (task1 != null) {
+        //   task1.then((snapshot1) async {
+        if (snapshot1 != null) {
+          imageUrl = await snapshot1.ref.getDownloadURL();
+          imageUrl1 = await snapshot1.ref.getDownloadURL();
+        }
+
+        if (snapshot2 != null) {
+          // imageUrl1 = await snapshot1.ref.getDownloadURL();
+          imageUrl2 = await snapshot2.ref.getDownloadURL();
+          // imageUrl3 = await snapshot3.ref.getDownloadURL();
+        }
+
+        if (snapshot3 != null) {
+          imageUrl3 = await snapshot3.ref.getDownloadURL();
+        }
+
+        List<String> imageList = [];
+
+        // if (widget.productModel != null && widget.isEdit == true) {
+        if (widget.productModel.images.isNotEmpty && widget.productModel.images.length == 3) {
+          imageList = [
+            snapshot1 != null ? imageUrl1 : widget.productModel.picture,
+            snapshot2 != null ? imageUrl2 : widget.productModel.images[1],
+            snapshot3 != null ? imageUrl3 : widget.productModel.images[2]
+          ];
+        } else if (snapshot2 != null && snapshot3 != null) {
+          imageList = [
+            snapshot1 != null ? imageUrl1 : widget.productModel.picture,
+            imageUrl2,
+            imageUrl3
+          ];
+        } else {
+          imageList = [];
+        }
+        productService.updateProduct({
+          "id": widget.productModel.id,
+          "name": productNameController.text,
+          "price": double.parse(
+              priceController.text.split(".").join("")),
+          "franchise": double.parse(
+              partnerFranchiseController.text.split(".").join("")),
+          "ibo": double.parse(
+              partnerIBOController.text.split(".").join("")),
+          "agent": double.parse(
+              partnerAgentController.text.split(".").join("")),
+          "size": _currentSize + " " + _currentPowerCapacity,
+          // "colors": colors,
+          "picture": snapshot1 != null ? imageUrl : widget.productModel
+              .picture,
+          "images": imageList,
+          "quantity": int.parse(quantityController.text),
+          "brand": _currentBrand,
+          "category": _currentCategory,
+          'sale': onSale,
+          'featured': featured,
+          'description': descriptionController.text
+        });
+        // }
+        _formKey.currentState.reset();
+        setState(() => isLoading = false);
+        Navigator.pop(context);
+        // });
+        // }
+
+      // }
+
+//       else {
+//         setState(() => isLoading = false);
+//
+// //        Fluttertoast.showToast(msg: 'all the images must be provided');
+//       }
+    }
+  }
+
+  validateAndUpload() async {
+    if (_formKey.currentState.validate()) {
+
       if (_image1 != null) {
         setState(() => isLoading = true);
         // if (_image1 != null && _image2 != null && _image3 != null) {
@@ -927,77 +1206,113 @@ class _AddProductState extends State<AddProduct> {
         String imageUrl3;
 
         final FirebaseStorage storage = FirebaseStorage.instance;
-        final String picture1 =
-            "1${DateTime.now().millisecondsSinceEpoch.toString()}.jpg";
-        UploadTask task1 =
-        storage.ref().child(picture1).putFile(_image1);
+
+        UploadTask task1;
+        // TaskSnapshot snapshot1;
+        if (_image1 != null) {
+          final String picture1 =
+              "1${DateTime
+              .now()
+              .millisecondsSinceEpoch
+              .toString()}.jpg";
+          task1 =
+          storage.ref().child(picture1).putFile(File(_image1.path));
+
+          // snapshot1 =
+          // await task1.then((snapshot) => snapshot);
+        }
 
         TaskSnapshot snapshot2;
         TaskSnapshot snapshot3;
 
-        if (_image2 != null && _image3 != null) {
+        if (_image2 != null) {
           final String picture2 =
               "2${DateTime
               .now()
               .millisecondsSinceEpoch
               .toString()}.jpg";
           UploadTask task2 =
-          storage.ref().child(picture2).putFile(_image2);
+          storage.ref().child(picture2).putFile(File(_image2.path));
+
+          snapshot2 =
+          await task2.then((snapshot) => snapshot);
+        }
+
+        if (_image3 != null) {
           final String picture3 =
               "3${DateTime
               .now()
               .millisecondsSinceEpoch
               .toString()}.jpg";
           UploadTask task3 =
-          storage.ref().child(picture3).putFile(_image3);
+          storage.ref().child(picture3).putFile(File(_image3.path));
 
           // TaskSnapshot snapshot1 =
           // await task1.then((snapshot) => snapshot);
           // TaskSnapshot snapshot2 =
           // await task2.then((snapshot) => snapshot);
 
-          snapshot2 =
-          await task2.then((snapshot) => snapshot);
           snapshot3 =
           await task3.then((snapshot) => snapshot);
         }
 
-        task1.then((snapshot1) async {
-          imageUrl = await snapshot1.ref.getDownloadURL();
+        // if (task1 != null) {
+          task1.then((snapshot1) async {
+            if (snapshot1 != null) {
+              imageUrl = await snapshot1.ref.getDownloadURL();
+              imageUrl1 = await snapshot1.ref.getDownloadURL();
+            }
 
-          if (snapshot2 != null && snapshot2 != null) {
-            imageUrl1 = await snapshot1.ref.getDownloadURL();
-            imageUrl2 = await snapshot2.ref.getDownloadURL();
-            imageUrl3 = await snapshot3.ref.getDownloadURL();
-          }
+            if (snapshot2 != null) {
+              // imageUrl1 = await snapshot1.ref.getDownloadURL();
+              imageUrl2 = await snapshot2.ref.getDownloadURL();
+              // imageUrl3 = await snapshot3.ref.getDownloadURL();
+            }
 
-          List<String> imageList = [imageUrl1, imageUrl2, imageUrl3];
+            if (snapshot3 != null) {
+              imageUrl3 = await snapshot3.ref.getDownloadURL();
+            }
 
-          productService.uploadProduct({
-            "name":productNameController.text,
-            "price":double.parse(priceController.text.split(".").join("")),
-            "franchise": double.parse(partnerFranchiseController.text.split(".").join("")),
-            "ibo": double.parse(partnerIBOController.text.split(".").join("")),
-            "agent": double.parse(partnerAgentController.text.split(".").join("")),
-            "size":_currentSize + " " + _currentPowerCapacity,
-            // "colors": colors,
-            "picture":imageUrl,
-            "images": snapshot2 != null && snapshot3 != null ? imageList : [],
-            "quantity":int.parse(quatityController.text),
-            "brand":_currentBrand,
-            "category":_currentCategory,
-            'sale':onSale,
-            'featured':featured,
-            'description':descriptionController.text
+            List<String> imageList = [];
+
+
+            imageList = [imageUrl1, imageUrl2, imageUrl3];
+
+            productService.uploadProduct({
+              "name": productNameController.text,
+              "price": double.parse(
+                  priceController.text.split(".").join("")),
+              "franchise": double.parse(
+                  partnerFranchiseController.text.split(".").join("")),
+              "ibo": double.parse(
+                  partnerIBOController.text.split(".").join("")),
+              "agent": double.parse(
+                  partnerAgentController.text.split(".").join("")),
+              "size": _currentSize + " " + _currentPowerCapacity,
+              // "colors": colors,
+              "picture": imageUrl,
+              "images": snapshot2 != null && snapshot3 != null
+                  ? imageList
+                  : [
+              ],
+              "quantity": int.parse(quantityController.text),
+              "brand": _currentBrand,
+              "category": _currentCategory,
+              'sale': onSale,
+              'featured': featured,
+              'description': descriptionController.text
+            });
+            _formKey.currentState.reset();
+            setState(() => isLoading = false);
+            Navigator.pop(context);
           });
-          _formKey.currentState.reset();
-          setState(() => isLoading = false);
-          Navigator.pop(context);
-        });
+        // }
+
         // } else {
         //   setState(() => isLoading = false);
         // }
-      } else {
+      }
+      else {
         setState(() => isLoading = false);
 
 //        Fluttertoast.showToast(msg: 'all the images must be provided');
