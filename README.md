@@ -1,2 +1,2 @@
-# admin_as_solar_sales
+# Admin AS Solar Sales App
  
